@@ -1,0 +1,2 @@
+rootProject.name = 'cloud-demo'
+include 'common', 'cloud-vm'

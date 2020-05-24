@@ -1,0 +1,148 @@
+package com.cloud.vm.cloud.vm.pve.data;
+
+import java.util.EnumSet;
+import java.util.Iterator;
+
+
+import com.cloud.vm.cloud.vm.pve.BaseApi;
+import com.cloud.vm.cloud.vm.pve.data.storage.Dir;
+import com.cloud.vm.cloud.vm.pve.data.storage.Iscsi;
+import com.cloud.vm.cloud.vm.pve.data.storage.Lvm;
+import com.cloud.vm.cloud.vm.pve.data.storage.Nfs;
+import org.json.JSONException;
+import org.json.JSONObject;
+import com.cloud.vm.cloud.vm.pve.BaseApi.PveParams;
+public class Storage {
+	private String storage;
+	private String digest;
+	private EnumSet<Content> content;
+	private String nodes;
+	private boolean shared;
+	private boolean disable;
+
+	public Storage(JSONObject data) throws JSONException {
+
+		storage = data.getString("storage");
+		digest = data.getString("digest");
+		content = Content.parse(data.getString("content"));
+		shared = data.optInt("shared") == 1;
+		disable = data.optInt("disable") == 1;
+		nodes = data.optString("nodes", "");
+	}
+
+	// for create
+	public Storage(String storage, EnumSet<Content> content, String nodes, boolean shared,
+			boolean disable) {
+		this(storage, "", content, nodes, shared, disable);
+	}
+
+	// for update
+	public Storage(String storage, String digest, EnumSet<Content> content, String nodes,
+			boolean shared, boolean disable) {
+
+		this.storage = storage;
+		this.digest = digest;
+		this.content = content;
+		this.nodes = nodes;
+		this.shared = shared;
+		this.disable = disable;
+	}
+
+	public String getStorage() {
+		return storage;
+	}
+
+	public String getDigest() {
+		return digest;
+	}
+
+	public EnumSet<Content> getContent() {
+		return content;
+	}
+
+	public String getNodes() {
+		return nodes;
+	}
+
+	public boolean isShared() {
+		return shared;
+	}
+
+	public boolean isDisable() {
+		return disable;
+	}
+
+	public BaseApi.PveParams getCreateParams() {
+		return new PveParams("storage", storage).Add("nodes", nodes)
+				.Add("content", Content.toString(content)).Add("shared", shared)
+				.Add("disable", disable);
+	}
+
+	public PveParams getUpdateParams() {
+		return new PveParams("content", Content.toString(content)).Add("nodes", nodes)
+				.Add("shared", shared).Add("disable", disable).Add("digest", digest);
+	}
+
+	public static Storage createStorage(JSONObject data) throws JSONException {
+		switch (convertType(data.getString("type"))) {
+			case Dir:
+				return new Dir(data);
+			case Nfs:
+				return new Nfs(data);
+			case Lvm:
+				return new Lvm(data);
+			case Iscsi:
+				return new Iscsi(data);
+			default:
+				return new Storage(data);
+		}
+	}
+
+	public static Type convertType(String name) {
+		if (name.equals("dir"))
+			return Type.Dir;
+		else if (name.equals("nfs"))
+			return Type.Nfs;
+		else if (name.equals("lvm"))
+			return Type.Lvm;
+		else if (name.equals("iscsi"))
+			return Type.Iscsi;
+		else
+			return Type.Unknown;
+	}
+
+	enum Type {
+		Dir, Nfs, Lvm, Iscsi, Unknown
+	}
+
+	public enum Content {
+		images, rootdir, vztmpl, iso, backup;
+
+		static <E extends Enum<E>> String toString(EnumSet<E> set) {
+			if (set == null || set.isEmpty()) {
+				return "";
+			} else {
+				final StringBuilder b = new StringBuilder();
+				final Iterator<E> i = set.iterator();
+				b.append(i.next());
+				for (; i.hasNext();) {
+					b.append(',').append(i.next());
+				}
+				return b.toString();
+			}
+		}
+
+		static EnumSet<Content> parse(final String str) {
+			final EnumSet<Content> set = EnumSet.noneOf(Content.class);
+			if (!str.isEmpty()) {
+				for (int i, j = 0; j >= 0;) {
+					i = j;
+					j = str.indexOf(',', i + 1);
+					final String sub = j >= 0 ? str.substring(i, j++) : str.substring(i);
+					set.add(Enum.valueOf(Content.class, sub.trim().toLowerCase()));
+				}
+			}
+			return set;
+		}
+	};
+}
