@@ -1,0 +1,14 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Build and Push and Deploy') {
+            steps {
+                sh 'docker build -f api/Dockerfile -t 192.168.1.37:5000/resource/resource-exec:latest .'
+                sh 'docker push 192.168.1.37:5000/resource/resource-exec:latest'
+                sh 'kubectl replace --force -f api/resource-deployment.yaml'
+            }
+        }
+    }
+}
+
